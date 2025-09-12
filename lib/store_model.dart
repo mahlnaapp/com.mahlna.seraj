@@ -8,7 +8,8 @@ class Store {
   final double longitude;
   final String? address;
   final String? phone;
-  double? distance; // أضف هذا الحقل
+  final String? zoneId; // <-- حقل القاطع / المنطقة
+  double? distance;
 
   Store({
     required this.id,
@@ -20,7 +21,8 @@ class Store {
     required this.longitude,
     this.address,
     this.phone,
-    this.distance, // أضفه هنا أيضاً
+    this.zoneId,
+    this.distance,
   });
 
   factory Store.fromMap(Map<String, dynamic> map) {
@@ -34,6 +36,7 @@ class Store {
       longitude: map['longitude']?.toDouble() ?? 0.0,
       address: map['address'],
       phone: map['phone'],
+      zoneId: map['zoneId'], // <-- قراءة القاطع من Appwrite
     );
   }
 
@@ -47,6 +50,7 @@ class Store {
       'longitude': longitude,
       if (address != null) 'address': address,
       if (phone != null) 'phone': phone,
+      if (zoneId != null) 'zoneId': zoneId, // <-- حفظ القاطع في Appwrite
     };
   }
 }

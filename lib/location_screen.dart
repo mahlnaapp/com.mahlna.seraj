@@ -1,7 +1,12 @@
+// File: location_screen.dart
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:appwrite/appwrite.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // 🔹 استيراد المكتبة
 import 'delivery_screen.dart';
-import 'dart:async'; // أضف هذا الاستيراد
+import 'dart:async';
+import 'cart_provider.dart'; // 🔹 استيراد CartProvider
 
 class LocationScreen extends StatefulWidget {
   const LocationScreen({super.key});
@@ -11,14 +16,93 @@ class LocationScreen extends StatefulWidget {
 }
 
 class _LocationScreenState extends State<LocationScreen> {
-  String _locationText = "جاري تحديد موقعك...";
   bool _isLoading = true;
-  bool _permissionDeniedForever = false;
+
+  List<Map<String, dynamic>> _neighborhoods = [];
+  List<Map<String, dynamic>> _filteredNeighborhoods = [];
+  String _searchText = '';
+
+  late Client _client;
+  late Databases _databases;
 
   @override
   void initState() {
     super.initState();
-    _checkLocationPermission();
+    _setupAppwrite();
+    _checkSavedZone(); // 🔹 استدعاء الدالة الجديدة عند بدء التشغيل
+  }
+
+  void _setupAppwrite() {
+    _client = Client();
+    _client
+        .setEndpoint('https://fra.cloud.appwrite.io/v1')
+        .setProject('6887ee78000e74d711f1');
+    _databases = Databases(_client);
+    _loadNeighborhoods();
+  }
+
+  // 🔹 دالة جديدة للتحقق من zoneId المحفوظ
+  Future<void> _checkSavedZone() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedZoneId = prefs.getString('selectedZoneId');
+
+    if (savedZoneId != null && mounted) {
+      // إذا كان هناك zoneId محفوظ، انتقل مباشرة إلى شاشة التوصيل
+      // يمكنك تمرير اسم المدينة الافتراضي هنا
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => DeliveryScreen(
+            deliveryCity: 'الموصل', // يمكنك تعديل هذه القيمة حسب الحاجة
+            zoneId: savedZoneId,
+          ),
+        ),
+      );
+    } else {
+      // إذا لم يكن هناك zoneId محفوظ، أكمل عملية التحقق من الموقع
+      _checkLocationPermission();
+    }
+  }
+
+  Future<void> _loadNeighborhoods() async {
+    try {
+      final result = await _databases.listDocuments(
+        databaseId: 'mahllnadb',
+        collectionId: 'zoneid',
+      );
+
+      setState(() {
+        // كل وثيقة تحتوي على اسم القاطع والمناطق التابعة له
+        _neighborhoods = result.documents
+            .map(
+              (doc) => {
+                'zone': doc.data['name'],
+                'neighborhoods': List<String>.from(
+                  doc.data['neighborhoods'] ?? [],
+                ),
+              },
+            )
+            .toList();
+
+        // في البداية، نعرض كل المناطق
+        _filteredNeighborhoods = _neighborhoods
+            .expand(
+              (zone) => (zone['neighborhoods'] as List<String>).map(
+                (name) => {'zone': zone['zone'], 'name': name},
+              ),
+            )
+            .toList();
+
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _neighborhoods = [];
+        _filteredNeighborhoods = [];
+        _isLoading = false;
+      });
+      print('فشل في جلب المناطق: $e');
+    }
   }
 
   Future<void> _checkLocationPermission() async {
@@ -60,22 +144,15 @@ class _LocationScreenState extends State<LocationScreen> {
 
   void _updateStatus(String message, {required bool isDeniedForever}) {
     setState(() {
-      _locationText = message;
       _isLoading = false;
-      _permissionDeniedForever = isDeniedForever;
     });
-  }
-
-  Future<void> _openAppSettings() async {
-    await Geolocator.openAppSettings();
-    await _checkLocationPermission();
   }
 
   Future<void> _getCurrentLocation() async {
     try {
       setState(() => _isLoading = true);
 
-      Position position = await Geolocator.getCurrentPosition(
+      await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: const Duration(seconds: 15),
       );
@@ -84,7 +161,7 @@ class _LocationScreenState extends State<LocationScreen> {
         context,
         PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) =>
-              const DeliveryScreen(deliveryCity: "الموصل"),
+              DeliveryScreen(deliveryCity: "تلقائي"),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
@@ -103,86 +180,122 @@ class _LocationScreenState extends State<LocationScreen> {
     }
   }
 
+  void _filterNeighborhoods(String value) {
+    setState(() {
+      _searchText = value.toLowerCase();
+      _filteredNeighborhoods = _neighborhoods
+          .expand(
+            (zone) => (zone['neighborhoods'] as List<String>).map(
+              (name) => {'zone': zone['zone'], 'name': name},
+            ),
+          )
+          .where(
+            (neighborhood) =>
+                neighborhood['name'].toLowerCase().contains(_searchText),
+          )
+          .toList();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("تحديد الموقع"),
+        title: const Text("اختر المنطقة السكنية"),
         centerTitle: true,
         automaticallyImplyLeading: false,
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _isLoading
-                  ? const CircularProgressIndicator(
-                      color: Colors.orange,
-                      strokeWidth: 5,
-                    )
-                  : Icon(
-                      _permissionDeniedForever
-                          ? Icons.location_off
-                          : Icons.location_on,
-                      size: 80,
-                      color: Colors.orange,
-                    ),
-              const SizedBox(height: 30),
-              Text(
-                _locationText,
-                style: const TextStyle(fontSize: 18),
-                textAlign: TextAlign.center,
-              ),
-              if (!_isLoading) ...[
-                const SizedBox(height: 30),
-                if (_permissionDeniedForever)
-                  ElevatedButton(
-                    onPressed: _openAppSettings,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 30,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                    child: const Text("فتح إعدادات الموقع"),
-                  )
-                else
-                  ElevatedButton(
-                    onPressed: _getCurrentLocation,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 30,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                    child: const Text("حاول مرة أخرى"),
-                  ),
-                const SizedBox(height: 15),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            const DeliveryScreen(deliveryCity: "الموصل"),
-                      ),
-                    );
-                  },
-                  child: const Text("أو اختر مدينة يدويًا"),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            TextField(
+              decoration: InputDecoration(
+                hintText: 'ابحث عن منطقتك...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20),
                 ),
-              ],
-            ],
-          ),
+              ),
+              onChanged: _filterNeighborhoods,
+            ),
+            const SizedBox(height: 15),
+            ElevatedButton.icon(
+              onPressed: _getCurrentLocation,
+              icon: const Icon(Icons.my_location),
+              label: const Text("استخدام الموقع تلقائيًا"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: Colors.orange),
+                  )
+                : Expanded(
+                    child: _filteredNeighborhoods.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'لا توجد مناطق متاحة',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: _filteredNeighborhoods.length,
+                            itemBuilder: (context, index) {
+                              final neighborhood =
+                                  _filteredNeighborhoods[index];
+                              return Card(
+                                child: ListTile(
+                                  title: Text(neighborhood['name']),
+                                  subtitle: Text(
+                                    'القاطع: ${neighborhood['zone']}',
+                                  ),
+                                  onTap: () async {
+                                    // 🔹 جعل الدالة asynchronous
+                                    // 🚀 الخطوة الجديدة: حفظ zoneId في shared_preferences
+                                    final prefs =
+                                        await SharedPreferences.getInstance();
+                                    await prefs.setString(
+                                      'selectedZoneId',
+                                      neighborhood['zone'],
+                                    );
+
+                                    // تحديث مزود السلة بمعرف القاطع
+                                    if (context.mounted) {
+                                      Provider.of<CartProvider>(
+                                        context,
+                                        listen: false,
+                                      ).updateZoneId(neighborhood['zone']);
+                                    }
+
+                                    // الانتقال إلى الشاشة التالية بعد حفظ الـ zoneId
+                                    if (context.mounted) {
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => DeliveryScreen(
+                                            deliveryCity: neighborhood['name'],
+                                            zoneId: neighborhood['zone'],
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+          ],
         ),
       ),
     );

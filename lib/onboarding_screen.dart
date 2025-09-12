@@ -1,18 +1,40 @@
-// onboarding_screen.dart
+// onboarding_auth_screen.dart
+import 'package:appwrite/enums.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:appwrite/appwrite.dart';
 import 'location_screen.dart';
 
-class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key});
+class OnboardingAuthScreen extends StatefulWidget {
+  const OnboardingAuthScreen({super.key});
 
   @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
+  State<OnboardingAuthScreen> createState() => _OnboardingAuthScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingAuthScreenState extends State<OnboardingAuthScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
+  bool _showAuth = false;
+
+  final Client client = Client();
+  late final Account account;
+
+  @override
+  void initState() {
+    super.initState();
+    client
+        .setEndpoint("https://fra.cloud.appwrite.io/v1")
+        .setProject("6887ee78000e74d711f1");
+    account = Account(client);
+    _checkOnboardingSeen();
+  }
+
+  Future<void> _checkOnboardingSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool('seenOnboarding') ?? false;
+    if (seen) setState(() => _showAuth = true);
+  }
 
   final List<OnboardingItem> _pages = [
     OnboardingItem(
@@ -36,57 +58,38 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('seenOnboarding', true);
     if (!mounted) return;
-
-    Navigator.pushReplacement(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const LocationScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          var begin = const Offset(1.0, 0.0);
-          var end = Offset.zero;
-          var curve = Curves.ease;
-
-          var tween = Tween(
-            begin: begin,
-            end: end,
-          ).chain(CurveTween(curve: curve));
-
-          return SlideTransition(
-            position: animation.drive(tween),
-            child: child,
-          );
-        },
-      ),
-    );
+    setState(() => _showAuth = true);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          PageView.builder(
-            controller: _pageController,
-            itemCount: _pages.length,
-            onPageChanged: (index) => setState(() => _currentPage = index),
-            itemBuilder: (context, index) =>
-                OnboardingPage(item: _pages[index]),
+      body: _showAuth ? AuthScreen(account: account) : _buildOnboardingScreen(),
+    );
+  }
+
+  Widget _buildOnboardingScreen() {
+    return Stack(
+      children: [
+        PageView.builder(
+          controller: _pageController,
+          itemCount: _pages.length,
+          onPageChanged: (index) => setState(() => _currentPage = index),
+          itemBuilder: (context, index) => OnboardingPage(item: _pages[index]),
+        ),
+        Positioned(
+          bottom: 50,
+          left: 0,
+          right: 0,
+          child: Column(
+            children: [
+              _buildPageIndicator(),
+              const SizedBox(height: 20),
+              _buildNextButton(),
+            ],
           ),
-          Positioned(
-            bottom: 40,
-            left: 0,
-            right: 0,
-            child: Column(
-              children: [
-                _buildPageIndicator(),
-                const SizedBox(height: 30),
-                _buildNextButton(),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -97,12 +100,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         _pages.length,
         (index) => AnimatedContainer(
           duration: const Duration(milliseconds: 300),
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          width: _currentPage == index ? 24 : 8,
-          height: 8,
+          margin: const EdgeInsets.symmetric(horizontal: 5),
+          width: _currentPage == index ? 22 : 10,
+          height: 10,
           decoration: BoxDecoration(
-            color: _currentPage == index ? Colors.orange : Colors.grey[300],
-            borderRadius: BorderRadius.circular(4),
+            color: _currentPage == index
+                ? Colors.orangeAccent
+                : Colors.grey[300],
+            borderRadius: BorderRadius.circular(5),
           ),
         ),
       ),
@@ -111,14 +116,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Widget _buildNextButton() {
     return SizedBox(
-      width: MediaQuery.of(context).size.width * 0.8,
+      width: MediaQuery.of(context).size.width * 0.75,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.orange,
+          backgroundColor: Colors.orangeAccent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(50),
           ),
           padding: const EdgeInsets.symmetric(vertical: 16),
+          elevation: 6,
         ),
         onPressed: () {
           if (_currentPage < _pages.length - 1) {
@@ -132,7 +138,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         },
         child: Text(
           _currentPage == _pages.length - 1 ? "ابدأ الآن" : "التالي",
-          style: const TextStyle(fontSize: 18),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -141,7 +147,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
 class OnboardingPage extends StatelessWidget {
   final OnboardingItem item;
-
   const OnboardingPage({super.key, required this.item});
 
   @override
@@ -151,17 +156,21 @@ class OnboardingPage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Image.asset(item.image, height: 300),
+          Image.asset(item.image, height: 280),
           const SizedBox(height: 40),
           Text(
             item.title,
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           Text(
             item.description,
-            style: const TextStyle(fontSize: 16, color: Colors.grey),
+            style: const TextStyle(fontSize: 16, color: Colors.black54),
             textAlign: TextAlign.center,
           ),
         ],
@@ -180,4 +189,206 @@ class OnboardingItem {
     required this.description,
     required this.image,
   });
+}
+
+// Auth Screen
+class AuthScreen extends StatefulWidget {
+  final Account account;
+  const AuthScreen({super.key, required this.account});
+
+  @override
+  State<AuthScreen> createState() => _AuthScreenState();
+}
+
+class _AuthScreenState extends State<AuthScreen> {
+  bool isLogin = true;
+  final _formKey = GlobalKey<FormState>();
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  final nameController = TextEditingController();
+
+  Future<void> _signUp() async {
+    try {
+      await widget.account.create(
+        userId: ID.unique(),
+        email: emailController.text,
+        password: passwordController.text,
+        name: nameController.text,
+      );
+      await _login();
+    } catch (e) {
+      _showError(e.toString());
+    }
+  }
+
+  Future<void> _login() async {
+    try {
+      await widget.account.createEmailPasswordSession(
+        email: emailController.text,
+        password: passwordController.text,
+      );
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LocationScreen()),
+      );
+    } catch (e) {
+      _showError(e.toString());
+    }
+  }
+
+  Future<void> _loginWithGoogle() async {
+    try {
+      await widget.account.createOAuth2Session(provider: OAuthProvider.google);
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LocationScreen()),
+      );
+    } catch (e) {
+      _showError(e.toString());
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(color: Colors.redAccent)),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                Text(
+                  isLogin ? "تسجيل الدخول" : "إنشاء حساب",
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 30),
+                if (!isLogin)
+                  TextFormField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      labelText: "الاسم",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    validator: (v) => v!.isEmpty ? "ادخل الاسم" : null,
+                  ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: emailController,
+                  decoration: InputDecoration(
+                    labelText: "البريد الإلكتروني",
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  validator: (v) => v!.isEmpty ? "ادخل البريد" : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: passwordController,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: "كلمة المرور",
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  validator: (v) => v!.length < 6 ? "كلمة المرور قصيرة" : null,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () {
+                    if (_formKey.currentState!.validate()) {
+                      isLogin ? _login() : _signUp();
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orangeAccent,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 16,
+                      horizontal: 32,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                    elevation: 6,
+                  ),
+                  child: Text(
+                    isLogin ? "تسجيل الدخول" : "إنشاء حساب",
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _loginWithGoogle,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue[700],
+                    foregroundColor: Colors.white,
+                    elevation: 4,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                      horizontal: 24,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                  ),
+                  child: const Text(
+                    "تسجيل الدخول باستخدام Google",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // زر الدخول كضيف
+                TextButton(
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LocationScreen()),
+                    );
+                  },
+                  child: const Text(
+                    "الدخول كضيف",
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize: 16,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => setState(() => isLogin = !isLogin),
+                  child: Text(
+                    isLogin ? "ليس لديك حساب؟ سجل الآن" : "لديك حساب؟ سجل دخول",
+                    style: const TextStyle(color: Colors.black54),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

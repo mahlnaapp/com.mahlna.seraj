@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "com.mahlna.syn"
+    namespace = "com.mahlna.seraj"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -39,11 +39,11 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.mahlna.syn"
+        applicationId = "com.mahlna.seraj"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = 3 
-        versionName = "1.1.1"
+        versionCode = 1 
+        versionName = "1.0.0"
     }
 
     buildTypes {

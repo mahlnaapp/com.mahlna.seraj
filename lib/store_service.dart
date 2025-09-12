@@ -1,7 +1,8 @@
+// File: store_service.dart
+
 import 'dart:math';
 import 'package:appwrite/appwrite.dart';
 import 'package:flutter/foundation.dart';
-import 'appwrite_service.dart';
 import 'store_model.dart';
 
 class StoreService {
@@ -14,18 +15,27 @@ class StoreService {
     int offset = 0,
     double? userLat,
     double? userLon,
+    String? zoneId,
   }) async {
     try {
+      final List<String> queries = [
+        Query.limit(limit),
+        Query.offset(offset),
+        Query.orderAsc('name'),
+      ];
+
+      // إضافة شرط الفلترة على zoneId مباشرة في استعلام قاعدة البيانات
+      if (zoneId != null && zoneId.isNotEmpty) {
+        queries.add(Query.equal('zoneId', zoneId));
+      }
+
       final response = await _databases.listDocuments(
         databaseId: 'mahllnadb',
         collectionId: 'Stores',
-        queries: [
-          Query.limit(limit),
-          Query.offset(offset),
-          Query.orderAsc('name'),
-        ],
+        queries: queries,
       );
 
+      // تحويل المستندات إلى كائنات Store
       final stores = response.documents.map((doc) {
         final store = Store.fromMap(doc.data);
 
@@ -57,6 +67,28 @@ class StoreService {
       throw Exception(
         'فشل في تحميل المتاجر. يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى.',
       );
+    }
+  }
+
+  // 🔹 الدالة الجديدة: لجلب المتجر بمعرفه
+  Future<Store?> getStoreById(String storeId) async {
+    try {
+      final response = await _databases.getDocument(
+        databaseId: 'mahllnadb',
+        collectionId: 'Stores',
+        documentId: storeId,
+      );
+      return Store.fromMap(response.data);
+    } on AppwriteException catch (e) {
+      if (e.code == 404) {
+        debugPrint('❌ Store not found with ID: $storeId');
+        return null; // Return null if the document does not exist
+      }
+      debugPrint('❌ Error fetching store by ID: $e');
+      return null;
+    } catch (e) {
+      debugPrint('❌ An unexpected error occurred: $e');
+      return null;
     }
   }
 

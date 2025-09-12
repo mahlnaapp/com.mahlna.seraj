@@ -1,18 +1,19 @@
-import 'package:flutter/material.dart';
 import 'package:appfotajer/main.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'cart_provider.dart';
 import 'store_screen.dart';
-import 'dart:math';
 import 'store_model.dart';
 import 'store_service.dart';
 import 'cart_screen.dart';
 import 'orders_screen.dart';
+import 'settings_screen.dart';
 
 class DeliveryScreen extends StatefulWidget {
   final String deliveryCity;
+  final String? zoneId;
 
-  const DeliveryScreen({super.key, required this.deliveryCity});
+  const DeliveryScreen({super.key, required this.deliveryCity, this.zoneId});
 
   @override
   State<DeliveryScreen> createState() => _DeliveryScreenState();
@@ -34,16 +35,20 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
   final List<String> _categories = [
     'الكل',
     'سوبرماركت',
+    'البان واجبان',
     'أفران',
+    'حلويات وكرزات',
     'مواد غذائية',
     'مطاعم',
+    'عطارية',
+    'مرطبات',
   ];
 
-  List<Widget> get _pages => [
-    const DeliveryScreen(deliveryCity: "الموصل"),
-    const CartScreen(),
-    const OrdersScreen(),
-    const SettingsScreen(),
+  // **تم التعديل:** إزالة `_buildHomeContent()` من قائمة `_pages`
+  final List<Widget> _pages = [
+    const CartScreen(), // السلة (index 1)
+    const OrdersScreen(), // طلباتي (index 2)
+    const SettingsScreen(), // الإعدادات (index 3)
   ];
 
   @override
@@ -74,6 +79,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
         offset: 0,
         userLat: _userLat,
         userLon: _userLon,
+        zoneId: widget.zoneId,
       );
 
       setState(() {
@@ -102,6 +108,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
         offset: _currentPage * _itemsPerPage,
         userLat: _userLat,
         userLon: _userLon,
+        zoneId: widget.zoneId,
       );
 
       setState(() {
@@ -153,12 +160,15 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.list_alt),
-            onPressed: () => Navigator.pushNamed(context, '/orders'),
+            onPressed: () => setState(() => _currentIndex = 2),
           ),
           _buildCartIconWithBadge(context),
         ],
       ),
-      body: _currentIndex == 0 ? _buildHomeContent() : _pages[_currentIndex],
+      // **تم التعديل:** منطق عرض الصفحات
+      body: _currentIndex == 0
+          ? _buildHomeContent()
+          : _pages[_currentIndex - 1],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
@@ -264,9 +274,8 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
         padding: const EdgeInsets.only(bottom: 16),
         itemCount: _filteredStores.length + (_hasMoreStores ? 1 : 0),
         itemBuilder: (context, index) {
-          if (index >= _filteredStores.length) {
+          if (index >= _filteredStores.length)
             return _buildLoadingMoreIndicator();
-          }
           return _buildStoreItem(_filteredStores[index]);
         },
       ),
@@ -274,8 +283,6 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
   }
 
   Widget _buildStoreItem(Store store) {
-    final distance = store.distance ?? 0.0;
-
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: InkWell(
@@ -354,7 +361,13 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
                     Row(
                       children: [
                         const Icon(Icons.location_on, size: 16),
-                        Text(' ${distance.toStringAsFixed(1)} كم'),
+                        Expanded(
+                          child: Text(
+                            store.address ?? "الموقع غير متوفر",
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Colors.grey),
+                          ),
+                        ),
                         const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -386,16 +399,13 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     );
   }
 
-  Widget _buildLoadingState() {
-    return const Center(child: CircularProgressIndicator(color: Colors.orange));
-  }
+  Widget _buildLoadingState() =>
+      const Center(child: CircularProgressIndicator(color: Colors.orange));
 
-  Widget _buildLoadingMoreIndicator() {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 16),
-      child: Center(child: CircularProgressIndicator(color: Colors.orange)),
-    );
-  }
+  Widget _buildLoadingMoreIndicator() => const Padding(
+    padding: EdgeInsets.symmetric(vertical: 16),
+    child: Center(child: CircularProgressIndicator(color: Colors.orange)),
+  );
 
   Widget _buildEmptyState() {
     return Center(

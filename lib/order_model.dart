@@ -3,7 +3,7 @@ import 'package:appfotajer/order_item_model.dart';
 class Order {
   final String id;
   final String userId;
-  final String customerName; // أضف هذا الحقل
+  final String customerName;
   final DateTime orderDate;
   final double totalAmount;
   final String status;
@@ -13,11 +13,12 @@ class Order {
   final bool isMultiStore;
   final String? storeName;
   final String? storeId;
+  final String? zoneId; // 🔹 تم إضافة حقل zoneId هنا
 
   Order({
     required this.id,
     required this.userId,
-    required this.customerName, // أضف هنا
+    required this.customerName,
     required this.orderDate,
     required this.totalAmount,
     required this.status,
@@ -27,13 +28,14 @@ class Order {
     required this.isMultiStore,
     this.storeName,
     this.storeId,
+    this.zoneId, // 🔹 تم إضافة zoneId إلى المُنشئ (Constructor)
   });
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'userId': userId,
-      'customerName': customerName, // أضف هنا
+      'customerName': customerName,
       'orderDate': orderDate.toIso8601String(),
       'totalAmount': totalAmount,
       'status': status,
@@ -42,6 +44,7 @@ class Order {
       'isMultiStore': isMultiStore,
       'storeName': storeName,
       'storeId': storeId,
+      'zoneId': zoneId, // 🔹 تم إضافة zoneId إلى خريطة البيانات (Map)
     };
   }
 }

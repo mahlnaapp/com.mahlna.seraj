@@ -1,8 +1,12 @@
+// File: cart_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'cart_provider.dart';
 import 'checkout_screen.dart';
+import 'appwrite_service.dart';
+import 'store_service.dart'; // 🔹 الخطوة 1: استيراد StoreService
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -12,6 +16,16 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
+  // 🔹 الخطوة 2: تعريف مثيل لـ StoreService
+  late StoreService _storeService;
+
+  @override
+  void initState() {
+    super.initState();
+    // 🔹 الخطوة 3: تهيئة الخدمة باستخدام مثيل Databases من AppwriteService
+    _storeService = StoreService(AppwriteService.databases);
+  }
+
   @override
   Widget build(BuildContext context) {
     final cartProvider = Provider.of<CartProvider>(context);
@@ -45,40 +59,13 @@ class _CartScreenState extends State<CartScreen> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            child: Text(
-                              firstItem.storeName,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                          _buildStoreHeader(firstItem.storeName),
+                          ...storeItems.map((item) {
+                            return _buildCartItem(context, item, cartProvider);
+                          }).toList(),
+                          _buildStoreSubtotal(
+                            cartProvider.getSubtotalByStore(storeId),
                           ),
-                          ...storeItems.map(
-                            (item) => _buildCartItem(item, cartProvider),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('المجموع الجزئي:'),
-                                Text(
-                                  NumberFormat.currency(
-                                    symbol: 'د.ع',
-                                    decimalDigits: 0,
-                                  ).format(
-                                    cartProvider.getSubtotalByStore(storeId),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Divider(),
                         ],
                       );
                     },
@@ -91,122 +78,110 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _buildCartItem(CartItem item, CartProvider cartProvider) {
-    return Dismissible(
-      key: Key(item.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        color: Colors.red,
-        child: const Icon(Icons.delete, color: Colors.white),
-      ),
-      onDismissed: (direction) {
-        cartProvider.removeItem(item.productId);
-      },
-      child: Card(
-        margin: const EdgeInsets.all(8),
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: ListTile(
-          leading: Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: item.image.isEmpty
-                ? Icon(Icons.shopping_bag, size: 30, color: Colors.grey[600])
-                : ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      item.image,
-                      width: 50,
-                      height: 50,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Icon(
-                        Icons.shopping_bag,
-                        size: 30,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ),
-          ),
-          title: Text(
-            item.name,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          subtitle: Text(
-            '${NumberFormat.currency(symbol: 'د.ع', decimalDigits: 0).format(item.price)} × ${item.quantity}',
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.remove_circle_outline),
-                color: Colors.red,
-                onPressed: () {
-                  if (item.quantity > 1) {
-                    cartProvider.updateQuantity(
-                      item.productId,
-                      item.quantity - 1,
-                    );
-                  } else {
-                    cartProvider.removeItem(item.productId);
-                  }
-                },
-              ),
-              Text(
-                item.quantity.toString(),
-                style: const TextStyle(fontSize: 16),
-              ),
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline),
-                color: Colors.green,
-                onPressed: () {
-                  cartProvider.updateQuantity(
-                    item.productId,
-                    item.quantity + 1,
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildEmptyCart() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.shopping_cart_outlined, size: 80, color: Colors.grey[300]),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           const Text(
             'سلة التسوق فارغة',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 10),
-          const Text(
-            'قم بإضافة بعض المنتجات لتظهر هنا',
-            style: TextStyle(color: Colors.grey),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStoreHeader(String storeName) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Text(
+        storeName,
+        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  Widget _buildCartItem(
+    BuildContext context,
+    CartItem item,
+    CartProvider cartProvider,
+  ) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ListTile(
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            item.image,
+            width: 60,
+            height: 60,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) =>
+                const Icon(Icons.broken_image),
           ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+        ),
+        title: Text(
+          item.name,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          NumberFormat.currency(
+            symbol: 'د.ع',
+            decimalDigits: 0,
+          ).format(item.price),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.remove_circle_outline),
+              onPressed: () {
+                if (item.quantity > 1) {
+                  cartProvider.updateQuantity(
+                    item.productId,
+                    item.quantity - 1,
+                  );
+                } else {
+                  cartProvider.removeItem(item.productId);
+                }
+              },
             ),
-            child: const Text('تصفح المتاجر', style: TextStyle(fontSize: 16)),
+            Text(
+              item.quantity.toString(),
+              style: const TextStyle(fontSize: 16),
+            ),
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline),
+              onPressed: () {
+                cartProvider.updateQuantity(item.productId, item.quantity + 1);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStoreSubtotal(double subtotal) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            'المجموع الفرعي:',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          Text(
+            NumberFormat.currency(
+              symbol: 'د.ع',
+              decimalDigits: 0,
+            ).format(subtotal),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
         ],
       ),
@@ -219,29 +194,31 @@ class _CartScreenState extends State<CartScreen> {
   ) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 2,
+            color: Colors.black12,
             blurRadius: 10,
-            offset: const Offset(0, -3),
+            offset: Offset(0, -5),
           ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('المجموع:', style: TextStyle(fontSize: 16)),
+              const Text(
+                'الإجمالي:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               Text(
                 cartProvider.formattedTotalPrice,
                 style: const TextStyle(
-                  fontWeight: FontWeight.bold,
                   fontSize: 18,
+                  fontWeight: FontWeight.bold,
                   color: Colors.orange,
                 ),
               ),
@@ -251,14 +228,35 @@ class _CartScreenState extends State<CartScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        CheckoutScreen(totalAmount: cartProvider.totalPrice),
-                  ),
-                );
+              onPressed: () async {
+                if (cartProvider.items.isEmpty) return;
+
+                final storeId = cartProvider.items.first.storeId;
+
+                // 🔹 الخطوة 4: استخدام مثيل الخدمة لاستدعاء الدالة الجديدة
+                final store = await _storeService.getStoreById(storeId);
+                final zoneId = store?.zoneId;
+
+                if (zoneId != null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CheckoutScreen(
+                        totalAmount: cartProvider.totalPrice,
+                        zoneId: zoneId,
+                      ),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'تعذر تحديد المنطقة. يرجى المحاولة مرة أخرى.',
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,

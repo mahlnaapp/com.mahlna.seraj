@@ -5,6 +5,9 @@ import 'package:intl/intl.dart';
 class CartProvider with ChangeNotifier {
   final List<CartItem> _items = [];
 
+  // 🔹 إضافة متغير لحفظ معرف القاطع/المنطقة
+  String? _selectedZoneId;
+
   List<CartItem> get items => List.unmodifiable(_items);
   int get itemCount => _items.fold(0, (sum, item) => sum + item.quantity);
   double get totalPrice =>
@@ -25,6 +28,15 @@ class CartProvider with ChangeNotifier {
     return _items
         .where((item) => item.storeId == storeId)
         .fold(0, (sum, item) => sum + (item.price * item.quantity));
+  }
+
+  // 🔹 دالة جديدة للوصول إلى المتغير
+  String? get selectedZoneId => _selectedZoneId;
+
+  // 🔹 دالة جديدة لتحديث معرف القاطع/المنطقة
+  void updateZoneId(String? zoneId) {
+    _selectedZoneId = zoneId;
+    notifyListeners();
   }
 
   void addItemWithNotification(

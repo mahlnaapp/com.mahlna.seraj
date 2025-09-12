@@ -1,4 +1,4 @@
-package com.mahlna.syn
+package com.mahlna.seraj
 
 import io.flutter.embedding.android.FlutterActivity
 

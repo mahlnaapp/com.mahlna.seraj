@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Syn</string>
+	<string>محلنا</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>syn</string>
+	<string>ma7alna</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -44,6 +44,32 @@
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+
+	<!-- 🚀 صلاحيات الموقع -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>نحتاج للوصول إلى موقعك لعرض المتاجر القريبة وتوصيل الطلبات.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>يتم استخدام موقعك لتحسين تجربة التوصيل.</string>
+
+	<!-- 🚀 صلاحيات الكاميرا -->
+	<key>NSCameraUsageDescription</key>
+	<string>نحتاج لاستخدام الكاميرا لالتقاط صور المنتجات أو الفواتير.</string>
+
+	<!-- 🚀 صلاحيات الصور/المعرض -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>نحتاج للوصول إلى مكتبة الصور لرفع الصور.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>نحتاج لإضافة صور إلى مكتبة الصور الخاصة بك.</string>
+
+	<!-- 🚀 صلاحيات الإشعارات -->
+	<key>NSUserNotificationUsageDescription</key>
+	<string>نحتاج لإرسال إشعارات لتنبيهك بالطلبات الجديدة وحالة التوصيل.</string>
+
+	<!-- 🚀 صلاحيات التخزين (Document Picker) -->
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>UIFileSharingEnabled</key>
 	<true/>
 </dict>
 </plist>
