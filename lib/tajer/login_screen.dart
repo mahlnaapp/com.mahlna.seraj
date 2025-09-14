@@ -34,9 +34,9 @@ class _LoginScreenState extends State<LoginScreen> {
       try {
         final res = await widget.databases.listDocuments(
           databaseId: 'mahllnadb',
-          collectionId: 'storesowner',
+          collectionId: 'Stores',
           queries: [
-            Query.equal('stname', _nameController.text),
+            Query.equal('name', _nameController.text),
             Query.equal('stpass', _passController.text),
           ],
         );
@@ -46,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
           final storeStatus = storeData['is_active'] ?? false;
 
           if (storeStatus) {
-            final storeId = storeData['stid'] as String;
+            final storeId = res.documents.first.$id;
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString('storeId', storeId);
 
@@ -98,6 +98,54 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _checkAccessCodeAndNavigate() async {
+    final codeController = TextEditingController();
+
+    bool? allowed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('إدخال الرمز للوصول'),
+        content: TextField(
+          controller: codeController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(hintText: 'ادخل الرمز للوصول'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(false); // إلغاء
+            },
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (codeController.text == '1212') {
+                Navigator.of(context).pop(true); // السماح بالدخول
+              } else {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('الرمز غير صحيح')));
+              }
+            },
+            child: const Text('تأكيد'),
+          ),
+        ],
+      ),
+    );
+
+    if (allowed == true) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => RegisterScreen(
+            databases: widget.databases,
+            storage: widget.storage,
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -138,17 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
               const SizedBox(height: 16),
               TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => RegisterScreen(
-                        databases: widget.databases,
-                        storage: widget.storage,
-                      ),
-                    ),
-                  );
-                },
+                onPressed: _checkAccessCodeAndNavigate,
                 child: const Text('إنشاء حساب جديد'),
               ),
             ],

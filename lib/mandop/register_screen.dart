@@ -30,7 +30,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-
       try {
         await _databases.createDocument(
           databaseId: AppConstants.databaseId,
@@ -44,7 +43,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             'loginAllowed': false, // الحساب غير مفعل
           },
         );
-
         if (mounted) {
           Navigator.pushReplacement(
             context,
