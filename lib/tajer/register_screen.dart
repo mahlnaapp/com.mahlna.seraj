@@ -28,7 +28,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
 
   String? selectedCategory;
-  String? selectedZoneName;
+  String? selectedZoneId; // 🔹 نخزن هنا اسم القاطع وليس الـ id
   String? selectedNeighborhood;
   double? latitude;
   double? longitude;
@@ -63,7 +63,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       setState(() {
-        zones = res.documents.map((doc) => doc.data).toList();
+        zones = res.documents.map((doc) {
+          final data = doc.data;
+          data['\$id'] = doc.$id;
+          return data;
+        }).toList();
       });
     } catch (e) {
       debugPrint("Error fetching zones: $e");
@@ -122,7 +126,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    if (selectedZoneName == null) {
+    if (selectedZoneId == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('الرجاء اختيار القاطع')));
@@ -146,6 +150,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final zone = zones.firstWhere((z) => z['\$id'] == selectedZoneId);
+
       final newStore = await widget.databases.createDocument(
         databaseId: 'mahllnadb',
         collectionId: 'Stores',
@@ -159,8 +165,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'latitude': latitude!,
           'longitude': longitude!,
           'category': selectedCategory!,
-          'zone': selectedZoneName!, // فقط الاسم
-          'neighborhood': selectedNeighborhood!, // فقط الحي
+          'zoneId': zone['name'], // 🔹 الحقل اسمه zoneId لكن قيمته = اسم القاطع
+          'neighborhood': selectedNeighborhood!,
           'image': '',
         },
       );
@@ -169,7 +175,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('storeId', storeId);
-      await prefs.setString('zone', selectedZoneName!);
+      await prefs.setString('zoneId', zone['name']); // 🔹 نخزن الاسم كـ zoneId
       await prefs.setString('neighborhood', selectedNeighborhood!);
 
       if (mounted) {
@@ -253,19 +259,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              // 🔹 اختيار القاطع بالاسم فقط
               DropdownButtonFormField<String>(
-                value: selectedZoneName,
+                value: selectedZoneId,
                 items: zones.map((zone) {
                   return DropdownMenuItem<String>(
-                    value: zone['name'] as String,
+                    value: zone['\$id'],
                     child: Text(zone['name'] ?? 'بدون اسم'),
                   );
                 }).toList(),
                 onChanged: (val) {
                   setState(() {
-                    selectedZoneName = val;
-                    final zone = zones.firstWhere((z) => z['name'] == val);
+                    selectedZoneId = val;
+                    final zone = zones.firstWhere((z) => z['\$id'] == val);
                     neighborhoods = List<String>.from(
                       zone['neighborhoods'] ?? [],
                     );
