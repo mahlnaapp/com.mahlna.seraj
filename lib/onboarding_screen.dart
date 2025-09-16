@@ -250,6 +250,19 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  Future<void> _loginWithApple() async {
+    try {
+      await widget.account.createOAuth2Session(provider: OAuthProvider.apple);
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LocationScreen()),
+      );
+    } catch (e) {
+      _showError(e.toString());
+    }
+  }
+
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -339,6 +352,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                // Google Sign-In
                 ElevatedButton(
                   onPressed: _loginWithGoogle,
                   style: ElevatedButton.styleFrom(
@@ -359,7 +373,28 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                // زر الدخول كضيف
+                // Apple Sign-In
+                ElevatedButton(
+                  onPressed: _loginWithApple,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    elevation: 4,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                      horizontal: 24,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                  ),
+                  child: const Text(
+                    "تسجيل الدخول باستخدام Apple",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Guest login
                 TextButton(
                   onPressed: () {
                     Navigator.pushReplacement(

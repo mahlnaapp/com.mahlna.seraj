@@ -23,12 +23,15 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+
+  final _usernameController =
+      TextEditingController(); // 🔹 لليوزر نيم (تسجيل الدخول)
+  final _nameController = TextEditingController(); // 🔹 اسم المتجر
   final _passController = TextEditingController();
   final _phoneController = TextEditingController();
 
   String? selectedCategory;
-  String? selectedZoneId; // 🔹 نخزن هنا اسم القاطع وليس الـ id
+  String? selectedZoneId;
   String? selectedNeighborhood;
   double? latitude;
   double? longitude;
@@ -157,7 +160,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         collectionId: 'Stores',
         documentId: ID.unique(),
         data: {
-          'name': _nameController.text,
+          'username':
+              _usernameController.text, // 🔹 يوزر نيم مخصص لتسجيل الدخول
+          'name': _nameController.text, // 🔹 اسم المتجر
           'stpass': _passController.text,
           'phone': _phoneController.text,
           'isOpen': true,
@@ -165,7 +170,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'latitude': latitude!,
           'longitude': longitude!,
           'category': selectedCategory!,
-          'zoneId': zone['name'], // 🔹 الحقل اسمه zoneId لكن قيمته = اسم القاطع
+          'zoneId': zone['name'],
           'neighborhood': selectedNeighborhood!,
           'image': '',
         },
@@ -175,7 +180,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('storeId', storeId);
-      await prefs.setString('zoneId', zone['name']); // 🔹 نخزن الاسم كـ zoneId
+      await prefs.setString('zoneId', zone['name']);
       await prefs.setString('neighborhood', selectedNeighborhood!);
 
       if (mounted) {
@@ -215,16 +220,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
           key: _formKey,
           child: Column(
             children: [
+              // 🔹 إدخال اليوزر نيم
               TextFormField(
-                controller: _nameController,
+                controller: _usernameController,
                 decoration: const InputDecoration(
-                  labelText: 'اسم المستخدم',
+                  labelText: 'اسم المستخدم (لتسجيل الدخول)',
                   border: OutlineInputBorder(),
                 ),
                 validator: (value) =>
                     value?.isEmpty ?? true ? 'الرجاء إدخال اسم المستخدم' : null,
               ),
               const SizedBox(height: 16),
+
+              // 🔹 إدخال اسم المتجر
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'اسم المتجر',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) =>
+                    value?.isEmpty ?? true ? 'الرجاء إدخال اسم المتجر' : null,
+              ),
+              const SizedBox(height: 16),
+
               TextFormField(
                 controller: _passController,
                 decoration: const InputDecoration(
@@ -247,6 +266,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     value?.isEmpty ?? true ? 'الرجاء إدخال رقم الهاتف' : null,
               ),
               const SizedBox(height: 16),
+
               DropdownButtonFormField<String>(
                 value: selectedCategory,
                 items: categories.map((cat) {
@@ -259,6 +279,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+
               DropdownButtonFormField<String>(
                 value: selectedZoneId,
                 items: zones.map((zone) {
@@ -283,6 +304,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+
               DropdownButtonFormField<String>(
                 value: selectedNeighborhood,
                 items: neighborhoods.map((n) {
@@ -295,6 +317,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+
               ListTile(
                 title: const Text('الموقع الجغرافي'),
                 subtitle: Text(
@@ -308,6 +331,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
               const SizedBox(height: 24),
+
               _isLoading
                   ? const CircularProgressIndicator()
                   : ElevatedButton(

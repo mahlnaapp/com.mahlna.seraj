@@ -23,7 +23,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  final _usernameController = TextEditingController(); // 🔹 صار خاص باليوزر نيم
   final _passController = TextEditingController();
   bool _isLoading = false;
 
@@ -36,7 +36,10 @@ class _LoginScreenState extends State<LoginScreen> {
           databaseId: 'mahllnadb',
           collectionId: 'Stores',
           queries: [
-            Query.equal('name', _nameController.text),
+            Query.equal(
+              'username',
+              _usernameController.text,
+            ), // 🔹 التحقق باليوزر نيم
             Query.equal('stpass', _passController.text),
           ],
         );
@@ -157,8 +160,9 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // 🔹 صار عندنا username بدلاً من اسم المتجر
               TextFormField(
-                controller: _nameController,
+                controller: _usernameController,
                 decoration: const InputDecoration(
                   labelText: 'اسم المستخدم',
                   border: OutlineInputBorder(),
