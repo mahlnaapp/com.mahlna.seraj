@@ -42,8 +42,8 @@ android {
         applicationId = "com.mahlna.syn"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = 8
-        versionName = "1.0.0"
+        versionCode = 11
+        versionName = "1.1.9"
     }
 
     buildTypes {

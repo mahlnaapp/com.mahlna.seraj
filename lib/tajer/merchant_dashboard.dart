@@ -7,23 +7,28 @@ import 'package:permission_handler/permission_handler.dart'
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../tajer/merchant_provider.dart';
 import '../tajer/product.dart';
 import '../tajer/order.dart';
 import '../tajer/product_category.dart';
+import 'store.dart' show Store;
 // To navigate back to the main app
 
 class MerchantDashboard extends StatefulWidget {
   final Databases databases;
   final Storage storage;
   final int? initialTabIndex;
+  // تمت إضافة onLogout لتوجيه المستخدم لصفحة تسجيل الدخول
+  final VoidCallback? onLogout;
 
   const MerchantDashboard({
     super.key,
     required this.databases,
     required this.storage,
     this.initialTabIndex,
+    this.onLogout, // تمت إضافته
   });
 
   @override
@@ -127,6 +132,7 @@ class _MerchantDashboardState extends State<MerchantDashboard>
               _buildProductsTab(provider),
               _buildOrdersTab(provider),
               _buildCategoriesTab(provider),
+              _buildStoreTab(provider), // الصفحة الجديدة
             ],
           );
         },
@@ -155,6 +161,7 @@ class _MerchantDashboardState extends State<MerchantDashboard>
             icon: Icon(Icons.category),
             label: 'التصنيفات',
           ),
+          BottomNavigationBarItem(icon: Icon(Icons.store), label: 'المتجر'),
         ],
       ),
     );
@@ -605,6 +612,502 @@ class _MerchantDashboardState extends State<MerchantDashboard>
         ),
       ],
     );
+  }
+
+  // دالة بناء صفحة معلومات المتجر الجديدة
+  Widget _buildStoreTab(MerchantProvider provider) {
+    final store = provider.store!;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 60,
+                    backgroundImage: store.image.isNotEmpty
+                        ? NetworkImage(store.image)
+                        : const AssetImage('assets/store_placeholder.png')
+                              as ImageProvider,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    store.name,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    store.category,
+                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Chip(
+                        label: Text(store.isOpen ? 'مفتوح' : 'مغلق'),
+                        backgroundColor: store.isOpen
+                            ? Colors.green
+                            : Colors.red,
+                        labelStyle: const TextStyle(color: Colors.white),
+                      ),
+                      const SizedBox(width: 8),
+                      Chip(
+                        label: Text(store.is_active ? 'نشط' : 'غير نشط'),
+                        backgroundColor: store.is_active
+                            ? Colors.blue
+                            : Colors.orange,
+                        labelStyle: const TextStyle(color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'معلومات المتجر',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+
+                  _buildInfoRow('معرف المتجر:', store.id),
+                  _buildInfoRow('الهاتف:', store.phone ?? 'غير محدد'),
+                  _buildInfoRow('العنوان:', store.address ?? 'غير محدد'),
+                  _buildInfoRow('خط العرض:', store.latitude.toStringAsFixed(6)),
+                  _buildInfoRow(
+                    'خط الطول:',
+                    store.longitude.toStringAsFixed(6),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => _showEditStoreInfoDialog(provider),
+                          child: const Text('تعديل المعلومات'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'إحصائيات المتجر',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildStatItem(
+                        'المنتجات',
+                        provider.products.length.toString(),
+                      ),
+                      _buildStatItem(
+                        'الطلبات',
+                        provider.orders.length.toString(),
+                      ),
+                      _buildStatItem(
+                        'التصنيفات',
+                        provider.categories.length.toString(),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // إضافة أزرار الحذف والتسجيل خروج (مطلوب التحديث)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'إدارة الحساب',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+
+                  ElevatedButton.icon(
+                    // هذا هو زر تسجيل الخروج
+                    onPressed: _showLogoutConfirmation,
+                    icon: const Icon(Icons.logout),
+                    label: const Text('تسجيل خروج'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  ElevatedButton.icon(
+                    onPressed: () => _showDeleteAccountConfirmation(provider),
+                    icon: const Icon(Icons.delete_forever),
+                    label: const Text('حذف الحساب'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 16))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String title, String value) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.orange,
+          ),
+        ),
+        Text(title, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+      ],
+    );
+  }
+
+  // دالة لعرض dialog لتعديل معلومات المتجر
+  Future<void> _showEditStoreInfoDialog(MerchantProvider provider) async {
+    final formKey = GlobalKey<FormState>();
+    final store = provider.store!;
+
+    final nameController = TextEditingController(text: store.name);
+    final phoneController = TextEditingController(text: store.phone ?? '');
+    final addressController = TextEditingController(text: store.address ?? '');
+    final categoryController = TextEditingController(text: store.category);
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('تعديل معلومات المتجر'),
+        content: Form(
+          key: formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'اسم المتجر'),
+                  validator: (value) => value?.isEmpty ?? true ? 'مطلوب' : null,
+                ),
+                TextFormField(
+                  controller: categoryController,
+                  decoration: const InputDecoration(labelText: 'تصنيف المتجر'),
+                  validator: (value) => value?.isEmpty ?? true ? 'مطلوب' : null,
+                ),
+                TextFormField(
+                  controller: phoneController,
+                  decoration: const InputDecoration(labelText: 'رقم الهاتف'),
+                  keyboardType: TextInputType.phone,
+                ),
+                TextFormField(
+                  controller: addressController,
+                  decoration: const InputDecoration(labelText: 'العنوان'),
+                  maxLines: 3,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (formKey.currentState?.validate() ?? false) {
+                try {
+                  // إنشاء كائن Store مع البيانات المحدثة
+                  final updatedStore = Store(
+                    id: store.id,
+                    name: nameController.text,
+                    category: categoryController.text,
+                    image: store.image,
+                    isOpen: store.isOpen,
+                    latitude: store.latitude,
+                    longitude: store.longitude,
+                    address: addressController.text.isNotEmpty
+                        ? addressController.text
+                        : null,
+                    phone: phoneController.text.isNotEmpty
+                        ? phoneController.text
+                        : null,
+                    is_active: store.is_active,
+                  );
+
+                  // تحديث المتجر في قاعدة البيانات
+                  await provider.databases.updateDocument(
+                    databaseId: 'mahllnadb',
+                    collectionId: 'Stores',
+                    documentId: store.id,
+                    data: updatedStore.toMap(),
+                  );
+
+                  // تحديث حالة التطبيق
+
+                  if (mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('تم تحديث معلومات المتجر بنجاح'),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('حدث خطأ: ${e.toString()}')),
+                    );
+                  }
+                }
+              }
+            },
+            child: const Text('حفظ'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // دالة لعرض تأكيد تسجيل الخروج (مضافة)
+  // في دالة _showLogoutConfirmation، استبدل الكود الحالي بالكود التالي:
+  Future<void> _showLogoutConfirmation() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('تسجيل الخروج'),
+        content: const Text('هل أنت متأكد من تسجيل الخروج؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'تسجيل خروج',
+              style: TextStyle(color: Colors.orange),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed ?? false) {
+      // مسح بيانات المتجر المحفوظة
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('storeId');
+
+      // التوجيه إلى شاشة LocationScreen
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/location',
+          (route) => false,
+        );
+      }
+    }
+  }
+
+  // دالة لعرض تأكيد حذف الحساب (مضافة)
+  Future<void> _showDeleteAccountConfirmation(MerchantProvider provider) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('حذف الحساب'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('هل أنت متأكد من حذف حسابك؟'),
+            SizedBox(height: 8),
+            Text(
+              '⚠️ تحذير: هذا الإجراء لا يمكن التراجع عنه',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'سيتم حذف جميع بيانات متجرك بما في ذلك:',
+              style: TextStyle(fontSize: 12),
+            ),
+            Text('• معلومات المتجر', style: TextStyle(fontSize: 12)),
+            Text('• المنتجات والتصنيفات', style: TextStyle(fontSize: 12)),
+            Text('• سجل الطلبات', style: TextStyle(fontSize: 12)),
+            SizedBox(height: 8),
+            Text(
+              'لن تتمكن من الوصول إلى هذه البيانات مرة أخرى',
+              style: TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'حذف الحساب',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed ?? false) {
+      await _deleteAccount(provider);
+    }
+  }
+
+  // دالة حذف الحساب (مضافة)
+  // استبدل دالة _deleteAccount الحالية بالكود التالي:
+  Future<void> _deleteAccount(MerchantProvider provider) async {
+    try {
+      // إظهار loading
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('جاري حذف الحساب...'),
+              ],
+            ),
+          ),
+        );
+      }
+
+      // 1. حذف جميع منتجات المتجر
+      for (final product in provider.products) {
+        await provider.databases.deleteDocument(
+          databaseId: 'mahllnadb',
+          collectionId: 'Products',
+          documentId: product.id,
+        );
+      }
+
+      // 2. حذف جميع تصنيفات المتجر
+      for (final category in provider.categories) {
+        await provider.databases.deleteDocument(
+          databaseId: 'mahllnadb',
+          collectionId: 'ProductCategories',
+          documentId: category.id,
+        );
+      }
+
+      // 3. حذف المتجر نفسه
+      await provider.databases.deleteDocument(
+        databaseId: 'mahllnadb',
+        collectionId: 'Stores',
+        documentId: provider.store!.id,
+      );
+
+      // 4. مسح بيانات المتجر المحفوظة محلياً
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('storeId');
+
+      // إغلاق dialog التحميل
+      if (mounted) Navigator.pop(context);
+
+      // إظهار رسالة نجاح
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('تم حذف الحساب بنجاح')));
+      }
+
+      // التوجيه إلى شاشة LocationScreen بعد الحذف
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/location',
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      // إغلاق dialog التحميل في حالة الخطأ
+      if (mounted) Navigator.pop(context);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('حدث خطأ أثناء حذف الحساب: ${e.toString()}')),
+        );
+      }
+    }
   }
 
   Widget _buildStatCard(
@@ -1432,10 +1935,4 @@ class _MerchantDashboardState extends State<MerchantDashboard>
       }
     }
   }
-
-  MerchantApp({
-    required Databases databases,
-    required Storage storage,
-    required initialStoreId,
-  }) {}
 }

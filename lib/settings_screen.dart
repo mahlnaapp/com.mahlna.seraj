@@ -281,21 +281,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
-          ListTile(
-            title: const Text('تطبيق المندوب'),
-            leading: const Icon(Icons.delivery_dining),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => MandopLoginScreen(
-                    databases: AppwriteService.databases,
-                    storage: AppwriteService.storage,
-                  ),
-                ),
-              );
-            },
-          ),
         ],
       ),
     );

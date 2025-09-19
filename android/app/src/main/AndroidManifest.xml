@@ -8,19 +8,24 @@
     <!-- 🚀 صلاحيات الكاميرا -->
     <uses-permission android:name="android.permission.CAMERA" />
 
-    <!-- 🚀 صلاحيات التخزين (قديمة لكن مطلوبة لبعض الأجهزة) -->
+    <!-- 🚀 صلاحيات التخزين (قديمة لبعض الأجهزة) -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="29" />
 
-    <!-- 🚀 صلاحيات الإشعارات (مطلوبة من Android 13 فأعلى) -->
+    <!-- 🚀 صلاحيات الإشعارات (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- 🚀 صلاحية الإنترنت للوصول إلى Appwrite -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
         android:label="محلنا"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+      
 
         <activity
             android:name=".MainActivity"
@@ -43,7 +48,7 @@
             </intent-filter>
         </activity>
 
-        <!-- Don't delete this -->
+        <!-- Flutter embedding -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

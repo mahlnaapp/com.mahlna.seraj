@@ -91,7 +91,7 @@ class MyApp extends StatelessWidget {
       initialRoute: showOnboarding ? '/' : '/location',
       routes: {
         // زبون
-        '/': (context) => const OnboardingAuthScreen(),
+        '/': (context) => const OnboardingScreen(),
         '/location': (context) => const LocationScreen(),
         '/delivery': (context) => const DeliveryScreen(deliveryCity: "الموصل"),
         '/store': (context) => StoreScreen(storeName: "متجر", storeId: "1"),

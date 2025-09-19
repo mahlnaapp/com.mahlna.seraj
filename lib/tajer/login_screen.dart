@@ -23,9 +23,50 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController(); // 🔹 صار خاص باليوزر نيم
+  final _usernameController = TextEditingController();
   final _passController = TextEditingController();
   bool _isLoading = false;
+  bool _checkingLoginStatus = true; // 🔹 حالة جديدة للتحقق من حالة التسجيل
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus(); // 🔹 التحقق من حالة تسجيل الدخول عند البدء
+  }
+
+  // 🔹 دالة جديدة للتحقق من حالة تسجيل الدخول
+  Future<void> _checkLoginStatus() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final storedStoreId = prefs.getString('storeId');
+
+      // إذا كان هناك متجر مسجل، توجه مباشرة إلى Dashboard
+      if (storedStoreId != null && mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChangeNotifierProvider(
+              create: (_) => MerchantProvider(
+                widget.databases,
+                widget.storage,
+                storedStoreId,
+              ),
+              child: MerchantDashboard(
+                databases: widget.databases,
+                storage: widget.storage,
+              ),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error checking login status: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _checkingLoginStatus = false);
+      }
+    }
+  }
 
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
@@ -36,10 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
           databaseId: 'mahllnadb',
           collectionId: 'Stores',
           queries: [
-            Query.equal(
-              'username',
-              _usernameController.text,
-            ), // 🔹 التحقق باليوزر نيم
+            Query.equal('username', _usernameController.text),
             Query.equal('stpass', _passController.text),
           ],
         );
@@ -96,7 +134,9 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
       } finally {
-        setState(() => _isLoading = false);
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     }
   }
@@ -115,15 +155,13 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(false); // إلغاء
-            },
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('إلغاء'),
           ),
           TextButton(
             onPressed: () {
               if (codeController.text == '1212') {
-                Navigator.of(context).pop(true); // السماح بالدخول
+                Navigator.pop(context, true);
               } else {
                 ScaffoldMessenger.of(
                   context,
@@ -136,7 +174,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
 
-    if (allowed == true) {
+    if (allowed == true && mounted) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -151,6 +189,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 🔹 عرض شاشة تحميل أثناء التحقق من حالة التسجيل
+    if (_checkingLoginStatus) {
+      return const Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('جاري التحقق من حالة التسجيل...'),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('تسجيل دخول التاجر')),
       body: Padding(
@@ -160,7 +214,6 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // 🔹 صار عندنا username بدلاً من اسم المتجر
               TextFormField(
                 controller: _usernameController,
                 decoration: const InputDecoration(
@@ -186,6 +239,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ? const CircularProgressIndicator()
                   : ElevatedButton(
                       onPressed: _login,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 50),
+                      ),
                       child: const Text('تسجيل الدخول'),
                     ),
               const SizedBox(height: 16),

@@ -151,6 +151,8 @@ class MerchantProvider with ChangeNotifier {
     required double latitude,
     required double longitude,
     required String image,
+    String? address,
+    String? phone,
   }) async {
     try {
       await _databases.updateDocument(
@@ -240,4 +242,8 @@ class MerchantProvider with ChangeNotifier {
       rethrow;
     }
   }
+
+  Future<void> deleteAccount() async {}
+
+  Future<void> logout() async {}
 }
