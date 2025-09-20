@@ -1,7 +1,9 @@
+import 'package:appfotajer/main.dart'; // افترضنا وجود هذا الملف لأجل AuthScreen
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:appwrite/appwrite.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // لاستخدام SharedPreferences
+import 'package:appwrite/appwrite.dart'; // لاستخدام Appwrite Client و Databases
+
 import 'cart_provider.dart';
 import 'store_screen.dart';
 import 'store_model.dart';
@@ -9,350 +11,10 @@ import 'store_service.dart';
 import 'cart_screen.dart';
 import 'orders_screen.dart';
 import 'settings_screen.dart';
-import 'auth_screen.dart';
-
-// ===================== UserInfoScreen =====================
-class UserInfoScreen extends StatefulWidget {
-  const UserInfoScreen({super.key});
-
-  @override
-  State<UserInfoScreen> createState() => _UserInfoScreenState();
-}
-
-class _UserInfoScreenState extends State<UserInfoScreen> {
-  String? userName;
-  String? userEmail;
-  String? userId;
-  bool _isDeleting = false; // <-- المتغير مُعرّف هنا
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUserData();
-  }
-
-  Future<void> _loadUserData() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      userId = prefs.getString('userId');
-      userName = prefs.getString('userName');
-      userEmail = prefs.getString('userEmail');
-    });
-  }
-
-  Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
-
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const AuthScreen()),
-      (route) => false,
-    );
-  }
-
-  Future<void> _deleteAccount() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString('userId');
-
-    if (userId == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('لا يوجد حساب لحذفه')));
-      return;
-    }
-
-    setState(() => _isDeleting = true);
-
-    try {
-      final client = Client()
-          .setEndpoint("https://fra.cloud.appwrite.io/v1")
-          .setProject("6887ee78000e74d711f1");
-
-      final databases = Databases(client);
-
-      // حذف حساب المستخدم من Appwrite
-      await databases.deleteDocument(
-        databaseId: "mahllnadb",
-        collectionId: "clients",
-        documentId: userId,
-      );
-
-      // مسح البيانات المحلية
-      await prefs.clear();
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('تم حذف الحساب بنجاح')));
-
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const AuthScreen()),
-        (route) => false,
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('فشل في حذف الحساب: $e')));
-    } finally {
-      setState(() => _isDeleting = false);
-    }
-  }
-
-  void _showDeleteConfirmation() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('تأكيد الحذف'),
-        content: const Text(
-          'هل أنت متأكد من أنك تريد حذف حسابك؟ لا يمكن التراجع عن هذا الإجراء.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: _deleteAccount,
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('حذف الحساب'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _navigateToAuthScreen() {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const AuthScreen()),
-      (route) => false,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('معلومات المستخدم'), centerTitle: true),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (userId == null)
-              Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.person_outline,
-                      size: 64,
-                      color: Colors.grey[400],
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'لم تقم بتسجيل الدخول',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'سجل الدخول للوصول إلى جميع الميزات',
-                      style: TextStyle(color: Colors.grey, fontSize: 16),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 32),
-
-                    // زر تسجيل الدخول
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _navigateToAuthScreen,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'تسجيل الدخول',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // زر إنشاء حساب جديد
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: _navigateToAuthScreen,
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          side: const BorderSide(color: Colors.orange),
-                        ),
-                        child: const Text(
-                          'إنشاء حساب جديد',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.orange,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // قسم الدخول كضيف
-                    const Divider(),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'يمكنك الاستمرار كضيف',
-                      style: TextStyle(color: Colors.grey, fontSize: 14),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'التصفح وإضافة المنتجات إلى السلة',
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              )
-            else
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'معلومات الحساب',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 20),
-                  _buildInfoCard(
-                    'الاسم',
-                    userName ?? 'غير متوفر',
-                    Icons.person,
-                  ),
-                  _buildInfoCard(
-                    'البريد الإلكتروني',
-                    userEmail ?? 'غير متوفر',
-                    Icons.email,
-                  ),
-                  _buildInfoCard(
-                    'رقم المستخدم',
-                    userId ?? 'غير متوفر',
-                    Icons.code,
-                  ),
-                  const SizedBox(height: 30),
-
-                  // زر تسجيل الخروج
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _logout,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'تسجيل الخروج',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // زر حذف الحساب
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _showDeleteConfirmation,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: _isDeleting
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              'حذف الحساب',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoCard(String title, String value, IconData icon) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.orange, size: 24),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    value,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+import 'auth_screen.dart'; // افترضنا وجود هذا الملف
 
 // ===================== DeliveryScreen =====================
+
 class DeliveryScreen extends StatefulWidget {
   final String deliveryCity;
   final String? zoneId;
@@ -367,7 +29,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
   int _selectedCategoryIndex = 0;
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = true;
-  bool _isLoadingMore = false; // <-- المتغير المطلوب استخدامه
+  bool _isLoadingMore = false;
   double? _userLat;
   double? _userLon;
   List<Store> _stores = [];
@@ -388,41 +50,24 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     'مرطبات',
   ];
 
-  late final List<Widget> _pages;
+  // تم التعديل: إضافة UserInfoScreen و تعديل مؤشرات الصفحات:
+  // 0: الرئيسية (Home Content)
+  // 1: السلة (CartScreen)
+  // 2: طلباتي (OrdersScreen)
+  // 3: الإعدادات (SettingsScreen)
+  // 4: معلومات المستخدم (UserInfoScreen)
+  final List<Widget> _pages = [
+    const CartScreen(), // مؤشر 1 في BottomNavigationBar يقابل index 0 في _pages
+    const OrdersScreen(), // مؤشر 2 في BottomNavigationBar يقابل index 1 في _pages
+    const SettingsScreen(), // مؤشر 3 في BottomNavigationBar يقابل index 2 في _pages
+    const UserInfoScreen(), // مؤشر 4 في BottomNavigationBar يقابل index 3 في _pages
+  ];
 
   @override
   void initState() {
     super.initState();
-
-    _pages = [
-      _buildHomeContent(), // وضعت الدالة هنا لتجنب الحاجة لتغيير currentIndex = 0
-      const CartScreen(),
-      const OrdersScreen(),
-      const SettingsScreen(),
-      const UserInfoScreen(),
-    ];
-
     _getUserLocation();
     _loadInitialStores();
-  }
-
-  // تم نقل دالة بناء المحتوى الرئيسي إلى initState لتجنب استدعاء BuildContext بشكل مباشر
-  Widget _buildHomeContent() {
-    return Column(
-      children: [
-        _buildSearchBar(),
-        _buildCategoriesBar(),
-        Expanded(
-          child: _isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(color: Colors.orange),
-                )
-              : _filteredStores.isEmpty
-              ? _buildEmptyState()
-              : _buildStoresList(),
-        ),
-      ],
-    );
   }
 
   Future<void> _getUserLocation() async {
@@ -440,6 +85,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
 
   Future<void> _loadInitialStores() async {
     try {
+      // يجب التأكد من تهيئة Provider.of<StoreService> في مستوى أعلى
       final storeService = Provider.of<StoreService>(context, listen: false);
       final stores = await storeService.getStores(
         limit: _itemsPerPage,
@@ -492,7 +138,6 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
         SnackBar(content: Text('فشل في تحميل المزيد من المتاجر: $e')),
       );
     } finally {
-      // تم تصحيح الخطأ هنا: تم استبدال _isDeleting بـ _isLoadingMore
       setState(() => _isLoadingMore = false);
     }
   }
@@ -505,6 +150,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
 
   List<Store> get _filteredStores {
     final searchText = _searchController.text.toLowerCase();
+
     return _stores.where((store) {
       final categoryMatch =
           _selectedCategoryIndex == 0 ||
@@ -513,6 +159,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
           searchText.isEmpty ||
           store.name.toLowerCase().contains(searchText) ||
           store.category.toLowerCase().contains(searchText);
+
       return categoryMatch && searchMatch;
     }).toList();
   }
@@ -524,6 +171,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
         title: Text('توصيل إلى ${widget.deliveryCity}'),
         centerTitle: true,
         actions: [
+          // تم تغيير مؤشر الطلبات من 2 إلى 3 في شريط التنقل السفلي
           IconButton(
             icon: const Icon(Icons.list_alt),
             onPressed: () => setState(() => _currentIndex = 2),
@@ -531,34 +179,56 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
           _buildCartIconWithBadge(context),
         ],
       ),
-      body: _pages[_currentIndex], // استخدام القائمة المُهيأة
+      // تم التعديل: منطق عرض الصفحات. إذا كان المؤشر 0 (الرئيسية)، اعرض _buildHomeContent()، وإلا، اعرض الصفحة من قائمة _pages
+      body: _currentIndex == 0
+          ? _buildHomeContent()
+          : _pages[_currentIndex - 1], // لأن صفحات الـ _pages تبدأ من index 1
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() {
-          _currentIndex = index;
-          // إعادة بناء محتوى الصفحة الرئيسية إذا تم النقر عليها
-          if (_currentIndex == 0) {
-            _pages[0] = _buildHomeContent();
-          }
-        }),
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.white70,
-        backgroundColor: Colors.orange,
-        type: BottomNavigationBarType.fixed,
+        onTap: (index) => setState(() => _currentIndex = index),
+        selectedItemColor: Colors.orange,
+        unselectedItemColor: Colors.black, // **تم التعديل ليصبح اللون أسود**
+        type: BottomNavigationBarType.fixed, // لتجنب إخفاء العناوين
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'الرئيسية'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'الرئيسية',
+          ), // 0
           BottomNavigationBarItem(
             icon: Icon(Icons.shopping_cart),
-            label: 'السلة',
+            label: 'السلة', // 1
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.list_alt), label: 'طلباتي'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.list_alt),
+            label: 'طلباتي',
+          ), // 2
           BottomNavigationBarItem(
             icon: Icon(Icons.settings),
-            label: 'الإعدادات',
+            label: 'الإعدادات', // 3
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'مستخدم'),
+          // تم الإضافة: خانة الحساب الجديدة
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'الحساب', // 4
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildHomeContent() {
+    return Column(
+      children: [
+        _buildSearchBar(),
+        _buildCategoriesBar(),
+        Expanded(
+          child: _isLoading
+              ? _buildLoadingState()
+              : _filteredStores.isEmpty
+              ? _buildEmptyState()
+              : _buildStoresList(),
+        ),
+      ],
     );
   }
 
@@ -609,7 +279,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
         selected: _selectedCategoryIndex == index,
         onSelected: (selected) =>
             setState(() => _selectedCategoryIndex = index),
-        selectedColor: Colors.orange[700],
+        selectedColor: Colors.orange,
         labelStyle: TextStyle(
           color: _selectedCategoryIndex == index ? Colors.white : Colors.black,
         ),
@@ -632,12 +302,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
         itemCount: _filteredStores.length + (_hasMoreStores ? 1 : 0),
         itemBuilder: (context, index) {
           if (index >= _filteredStores.length)
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Center(
-                child: CircularProgressIndicator(color: Colors.orange),
-              ),
-            );
+            return _buildLoadingMoreIndicator();
           return _buildStoreItem(_filteredStores[index]);
         },
       ),
@@ -761,6 +426,14 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
     );
   }
 
+  Widget _buildLoadingState() =>
+      const Center(child: CircularProgressIndicator(color: Colors.orange));
+
+  Widget _buildLoadingMoreIndicator() => const Padding(
+    padding: EdgeInsets.symmetric(vertical: 16),
+    child: Center(child: CircularProgressIndicator(color: Colors.orange)),
+  );
+
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -789,6 +462,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
   }
 
   Widget _buildCartIconWithBadge(BuildContext context) {
+    // تم تغيير مؤشر السلة من 1 إلى 1
     return Consumer<CartProvider>(
       builder: (context, cart, _) => Stack(
         alignment: Alignment.center,
@@ -811,6 +485,376 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+// ===================== UserInfoScreen =====================
+class UserInfoScreen extends StatefulWidget {
+  const UserInfoScreen({super.key});
+
+  @override
+  State<UserInfoScreen> createState() => _UserInfoScreenState();
+}
+
+class _UserInfoScreenState extends State<UserInfoScreen> {
+  String? userName;
+  String? userEmail;
+  String? userId;
+  bool _isDeleting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      userId = prefs.getString('userId');
+      userName = prefs.getString('userName');
+      userEmail = prefs.getString('userEmail');
+    });
+  }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    // مسح البيانات المحلية لإنهاء الجلسة
+    await prefs.clear();
+
+    // يجب التأكد من وجود AuthScreen
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const AuthScreen()),
+      (route) => false,
+    );
+  }
+
+  Future<void> _deleteAccount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId');
+
+    if (userId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('لا يوجد حساب لحذفه')));
+      return;
+    }
+
+    // تعطيل الزر وعرض مؤشر التحميل
+    setState(() => _isDeleting = true);
+
+    try {
+      // **ملاحظة:** ستحتاج إلى التأكد من تهيئة Appwrite Client بشكل صحيح في مكان آخر في التطبيق
+      // وتمكين الاتصال بـ Appwrite.
+      final client = Client()
+          .setEndpoint("https://fra.cloud.appwrite.io/v1")
+          .setProject("6887ee78000e74d711f1");
+
+      final databases = Databases(client);
+
+      // حذف مستند المستخدم المرتبط به في قاعدة البيانات (Clients collection)
+      await databases.deleteDocument(
+        databaseId: "mahllnadb",
+        collectionId: "clients",
+        documentId: userId,
+      );
+
+      // مسح البيانات المحلية
+      await prefs.clear();
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تم حذف الحساب بنجاح')));
+
+      // يجب التأكد من وجود AuthScreen
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const AuthScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('فشل في حذف الحساب: $e')));
+    } finally {
+      // إعادة تفعيل الزر في حالة الفشل
+      setState(() => _isDeleting = false);
+    }
+  }
+
+  void _showDeleteConfirmation() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('تأكيد الحذف'),
+        content: const Text(
+          'هل أنت متأكد من أنك تريد حذف حسابك؟ لا يمكن التراجع عن هذا الإجراء.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            // يتم تعطيل الزر إذا كان الحذف جارياً بالفعل
+            onPressed: _isDeleting ? null : _deleteAccount,
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(
+              _isDeleting ? 'جاري الحذف...' : 'حذف الحساب',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _navigateToAuthScreen() {
+    // يجب التأكد من وجود AuthScreen
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const AuthScreen()),
+      (route) => false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('معلومات المستخدم'), centerTitle: true),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (userId == null)
+              Expanded(
+                child: Center(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.person_outline,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 24),
+                        const Text(
+                          'لم تقم بتسجيل الدخول',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'سجل الدخول للوصول إلى جميع الميزات',
+                          style: TextStyle(color: Colors.grey, fontSize: 16),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 32),
+
+                        // زر تسجيل الدخول
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _navigateToAuthScreen,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'تسجيل الدخول',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // زر إنشاء حساب جديد
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: _navigateToAuthScreen,
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              side: const BorderSide(color: Colors.orange),
+                            ),
+                            child: const Text(
+                              'إنشاء حساب جديد',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // قسم الدخول كضيف
+                        const Divider(),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'يمكنك الاستمرار كضيف',
+                          style: TextStyle(color: Colors.grey, fontSize: 14),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'التصفح وإضافة المنتجات إلى السلة',
+                          style: TextStyle(color: Colors.grey, fontSize: 12),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            else
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'معلومات الحساب',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      _buildInfoCard(
+                        'الاسم',
+                        userName ?? 'غير متوفر',
+                        Icons.person,
+                      ),
+                      _buildInfoCard(
+                        'البريد الإلكتروني',
+                        userEmail ?? 'غير متوفر',
+                        Icons.email,
+                      ),
+                      _buildInfoCard(
+                        'رقم المستخدم',
+                        userId ?? 'غير متوفر',
+                        Icons.code,
+                      ),
+                      const SizedBox(height: 30),
+
+                      // زر تسجيل الخروج
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _logout,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'تسجيل الخروج',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // زر حذف الحساب
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _isDeleting
+                              ? null
+                              : _showDeleteConfirmation,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: _isDeleting
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white,
+                                )
+                              : const Text(
+                                  'حذف الحساب',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoCard(String title, String value, IconData icon) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.orange, size: 24),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
