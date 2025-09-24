@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:appwrite/appwrite.dart';
 
 import 'cart_provider.dart';
 import 'orders_provider.dart';
@@ -16,6 +15,7 @@ import 'appwrite_service.dart';
 import 'store_service.dart';
 import 'order_service.dart';
 import 'settings_screen.dart' hide MandopLoginScreen;
+import 'auth_screen.dart';
 
 // التاجر
 import 'tajer/login_screen.dart';
@@ -33,7 +33,35 @@ Future<void> main() async {
 
   final prefs = await SharedPreferences.getInstance();
   final bool seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
+  final String? userId = prefs.getString('userId');
+  final String? selectedZoneId = prefs.getString('selectedZoneId');
+  final String? selectedZoneName = prefs.getString('selectedZoneName');
   final storedStoreId = prefs.getString('storeId');
+
+  String initialRoute;
+  String? initialDeliveryCity;
+  String? initialZoneId;
+
+  // 1. إذا لم يشاهد المستخدم شاشة التمهيد، اذهب إليها.
+  if (!seenOnboarding) {
+    initialRoute = '/';
+  }
+  // 2. إذا كان المستخدم مسجلاً دخوله ولديه موقع محدد، اذهب إلى شاشة التوصيل.
+  else if (userId != null &&
+      selectedZoneId != null &&
+      selectedZoneName != null) {
+    initialRoute = '/delivery';
+    initialDeliveryCity = selectedZoneName;
+    initialZoneId = selectedZoneId;
+  }
+  // 3. إذا كان المستخدم مسجلاً دخوله ولكن لم يحدد موقعاً، اذهب إلى شاشة الموقع.
+  else if (userId != null) {
+    initialRoute = '/location';
+  }
+  // 4. إذا كان المستخدم قد شاهد شاشة التمهيد لكنه غير مسجل دخوله، اذهب إلى شاشة المصادقة.
+  else {
+    initialRoute = '/auth';
+  }
 
   runApp(
     MultiProvider(
@@ -58,17 +86,28 @@ Future<void> main() async {
           ),
       ],
       child: MyApp(
-        showOnboarding: !seenOnboarding,
+        initialRoute: initialRoute,
         initialStoreId: storedStoreId,
+        initialDeliveryCity: initialDeliveryCity,
+        initialZoneId: initialZoneId,
       ),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
-  final bool showOnboarding;
+  final String initialRoute;
   final String? initialStoreId;
-  const MyApp({super.key, required this.showOnboarding, this.initialStoreId});
+  final String? initialDeliveryCity;
+  final String? initialZoneId;
+
+  const MyApp({
+    super.key,
+    required this.initialRoute,
+    this.initialStoreId,
+    this.initialDeliveryCity,
+    this.initialZoneId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -88,13 +127,18 @@ class MyApp extends StatelessWidget {
           iconTheme: IconThemeData(color: Colors.black),
         ),
       ),
-      initialRoute: showOnboarding ? '/' : '/location',
+      initialRoute: initialRoute,
       routes: {
         // زبون
         '/': (context) => const OnboardingScreen(),
+        '/auth': (context) => const AuthScreen(),
         '/location': (context) => const LocationScreen(),
-        '/delivery': (context) => const DeliveryScreen(deliveryCity: "الموصل"),
-        '/store': (context) => StoreScreen(storeName: "متجر", storeId: "1"),
+        '/delivery': (context) => DeliveryScreen(
+          deliveryCity: initialDeliveryCity ?? 'الموصل',
+          zoneId: initialZoneId,
+        ),
+        '/store': (context) =>
+            const StoreScreen(storeName: "متجر", storeId: "1"),
         '/cart': (context) => const CartScreen(),
         '/checkout': (context) {
           final total = Provider.of<CartProvider>(

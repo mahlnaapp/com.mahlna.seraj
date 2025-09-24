@@ -42,7 +42,7 @@ android {
         applicationId = "com.mahlna.syn"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = 11
+        versionCode = 12
         versionName = "1.1.9"
     }
 

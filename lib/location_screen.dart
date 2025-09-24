@@ -1,12 +1,11 @@
-// File: location_screen.dart
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:appwrite/appwrite.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // 🔹 استيراد المكتبة
+import 'package:shared_preferences/shared_preferences.dart';
 import 'delivery_screen.dart';
 import 'dart:async';
-import 'cart_provider.dart'; // 🔹 استيراد CartProvider
+import 'cart_provider.dart';
 
 class LocationScreen extends StatefulWidget {
   const LocationScreen({super.key});
@@ -29,38 +28,32 @@ class _LocationScreenState extends State<LocationScreen> {
   void initState() {
     super.initState();
     _setupAppwrite();
-    _checkSavedZone(); // 🔹 استدعاء الدالة الجديدة عند بدء التشغيل
+    _checkSavedZone();
   }
 
   void _setupAppwrite() {
-    _client = Client();
-    _client
+    _client = Client()
         .setEndpoint('https://fra.cloud.appwrite.io/v1')
         .setProject('6887ee78000e74d711f1');
     _databases = Databases(_client);
-    _loadNeighborhoods();
   }
 
-  // 🔹 دالة جديدة للتحقق من zoneId المحفوظ
   Future<void> _checkSavedZone() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedZoneId = prefs.getString('selectedZoneId');
+    final String? savedZoneId = prefs.getString('selectedZoneId');
+    final String? savedZoneName = prefs.getString('selectedZoneName');
 
-    if (savedZoneId != null && mounted) {
-      // إذا كان هناك zoneId محفوظ، انتقل مباشرة إلى شاشة التوصيل
-      // يمكنك تمرير اسم المدينة الافتراضي هنا
-      Navigator.pushReplacement(
-        context,
+    if (savedZoneId != null && savedZoneName != null && mounted) {
+      // إذا كان هناك موقع محفوظ، انتقل مباشرة إلى شاشة التوصيل
+      Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (context) => DeliveryScreen(
-            deliveryCity: 'الموصل', // يمكنك تعديل هذه القيمة حسب الحاجة
-            zoneId: savedZoneId,
-          ),
+          builder: (context) =>
+              DeliveryScreen(deliveryCity: savedZoneName, zoneId: savedZoneId),
         ),
       );
     } else {
-      // إذا لم يكن هناك zoneId محفوظ، أكمل عملية التحقق من الموقع
-      _checkLocationPermission();
+      // إذا لم يكن هناك موقع محفوظ، أكمل عملية تحميل الأحياء
+      _loadNeighborhoods();
     }
   }
 
@@ -72,7 +65,6 @@ class _LocationScreenState extends State<LocationScreen> {
       );
 
       setState(() {
-        // كل وثيقة تحتوي على اسم القاطع والمناطق التابعة له
         _neighborhoods = result.documents
             .map(
               (doc) => {
@@ -84,7 +76,6 @@ class _LocationScreenState extends State<LocationScreen> {
             )
             .toList();
 
-        // في البداية، نعرض كل المناطق
         _filteredNeighborhoods = _neighborhoods
             .expand(
               (zone) => (zone['neighborhoods'] as List<String>).map(
@@ -109,10 +100,7 @@ class _LocationScreenState extends State<LocationScreen> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        _updateStatus(
-          "الموقع معطل. الرجاء تفعيله في الإعدادات",
-          isDeniedForever: true,
-        );
+        _updateStatus("الموقع معطل. الرجاء تفعيله في الإعدادات");
         return;
       }
 
@@ -120,31 +108,26 @@ class _LocationScreenState extends State<LocationScreen> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          _updateStatus("تم رفض إذن الموقع", isDeniedForever: false);
+          _updateStatus("تم رفض إذن الموقع");
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        _updateStatus(
-          "الإذن مرفوض دائمًا. الرجاء تغييره في الإعدادات",
-          isDeniedForever: true,
-        );
+        _updateStatus("الإذن مرفوض دائمًا. الرجاء تغييره في الإعدادات");
         return;
       }
 
       await _getCurrentLocation();
     } catch (e) {
-      _updateStatus(
-        "حدث خطأ أثناء التحقق من الصلاحيات: ${e.toString()}",
-        isDeniedForever: false,
-      );
+      _updateStatus("حدث خطأ أثناء التحقق من الصلاحيات: ${e.toString()}");
     }
   }
 
-  void _updateStatus(String message, {required bool isDeniedForever}) {
+  void _updateStatus(String message) {
     setState(() {
       _isLoading = false;
+      print(message);
     });
   }
 
@@ -157,26 +140,18 @@ class _LocationScreenState extends State<LocationScreen> {
         timeLimit: const Duration(seconds: 15),
       );
 
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              DeliveryScreen(deliveryCity: "تلقائي"),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
-      );
+      if (context.mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) =>
+                const DeliveryScreen(deliveryCity: "الموقع الحالي"),
+          ),
+        );
+      }
     } on TimeoutException {
-      _updateStatus(
-        "استغرقت عملية تحديد الموقع وقتًا طويلاً",
-        isDeniedForever: false,
-      );
+      _updateStatus("استغرقت عملية تحديد الموقع وقتًا طويلاً");
     } catch (e) {
-      _updateStatus(
-        "فشل في الحصول على الموقع: ${e.toString()}",
-        isDeniedForever: false,
-      );
+      _updateStatus("فشل في الحصول على الموقع: ${e.toString()}");
     }
   }
 
@@ -221,7 +196,7 @@ class _LocationScreenState extends State<LocationScreen> {
             ),
             const SizedBox(height: 15),
             ElevatedButton.icon(
-              onPressed: _getCurrentLocation,
+              onPressed: _checkLocationPermission,
               icon: const Icon(Icons.my_location),
               label: const Text("استخدام الموقع تلقائيًا"),
               style: ElevatedButton.styleFrom(
@@ -260,16 +235,17 @@ class _LocationScreenState extends State<LocationScreen> {
                                     'القاطع: ${neighborhood['zone']}',
                                   ),
                                   onTap: () async {
-                                    // 🔹 جعل الدالة asynchronous
-                                    // 🚀 الخطوة الجديدة: حفظ zoneId في shared_preferences
                                     final prefs =
                                         await SharedPreferences.getInstance();
                                     await prefs.setString(
                                       'selectedZoneId',
                                       neighborhood['zone'],
                                     );
+                                    await prefs.setString(
+                                      'selectedZoneName',
+                                      neighborhood['name'],
+                                    );
 
-                                    // تحديث مزود السلة بمعرف القاطع
                                     if (context.mounted) {
                                       Provider.of<CartProvider>(
                                         context,
@@ -277,7 +253,6 @@ class _LocationScreenState extends State<LocationScreen> {
                                       ).updateZoneId(neighborhood['zone']);
                                     }
 
-                                    // الانتقال إلى الشاشة التالية بعد حفظ الـ zoneId
                                     if (context.mounted) {
                                       Navigator.pushReplacement(
                                         context,

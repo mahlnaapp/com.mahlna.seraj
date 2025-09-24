@@ -1,3 +1,4 @@
+// File: onboarding_screen.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_screen.dart'; // استدعاء صفحة AuthScreen
@@ -12,19 +13,6 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
-  bool _showAuth = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkOnboardingSeen();
-  }
-
-  Future<void> _checkOnboardingSeen() async {
-    final prefs = await SharedPreferences.getInstance();
-    final seen = prefs.getBool('seenOnboarding') ?? false;
-    if (seen) setState(() => _showAuth = true);
-  }
 
   final List<OnboardingItem> _pages = [
     OnboardingItem(
@@ -46,40 +34,42 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Future<void> _completeOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('seenOnboarding', true);
-    if (!mounted) return;
-    setState(() => _showAuth = true);
+    await prefs.setBool('seenOnboarding', true); // حفظ الحالة
+
+    // الانتقال إلى شاشة المصادقة باستخدام pushReplacement
+    if (context.mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const AuthScreen()),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _showAuth ? const AuthScreen() : _buildOnboardingScreen(),
-    );
-  }
-
-  Widget _buildOnboardingScreen() {
-    return Stack(
-      children: [
-        PageView.builder(
-          controller: _pageController,
-          itemCount: _pages.length,
-          onPageChanged: (index) => setState(() => _currentPage = index),
-          itemBuilder: (context, index) => OnboardingPage(item: _pages[index]),
-        ),
-        Positioned(
-          bottom: 50,
-          left: 0,
-          right: 0,
-          child: Column(
-            children: [
-              _buildPageIndicator(),
-              const SizedBox(height: 20),
-              _buildNextButton(),
-            ],
+      body: Stack(
+        children: [
+          PageView.builder(
+            controller: _pageController,
+            itemCount: _pages.length,
+            onPageChanged: (index) => setState(() => _currentPage = index),
+            itemBuilder: (context, index) =>
+                OnboardingPage(item: _pages[index]),
           ),
-        ),
-      ],
+          Positioned(
+            bottom: 50,
+            left: 0,
+            right: 0,
+            child: Column(
+              children: [
+                _buildPageIndicator(),
+                const SizedBox(height: 20),
+                _buildNextButton(),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
